@@ -1,0 +1,601 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ניתוח EMG — MVC</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/chartjs-plugin-annotation/3.0.1/chartjs-plugin-annotation.min.js"></script>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600&family=Heebo:wght@300;400;600;700&display=swap');
+
+  :root {
+    --bg: #0d0f14;
+    --panel: #141720;
+    --border: #252a38;
+    --accent: #00d4aa;
+    --accent3: #7c6dfa;
+    --text: #e8ecf4;
+    --text-dim: #6b7494;
+    --orange: #ff6b35;
+    --red: #ff4466;
+    --card-bg: #1a1f2e;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Heebo', sans-serif;
+    min-height: 100vh;
+    padding: 24px;
+  }
+
+  header {
+    display: flex; align-items: center; gap: 16px;
+    margin-bottom: 28px; padding-bottom: 20px;
+    border-bottom: 1px solid var(--border);
+  }
+  .logo {
+    width: 44px; height: 44px;
+    background: linear-gradient(135deg, var(--accent), var(--accent3));
+    border-radius: 10px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 22px;
+  }
+  header h1 { font-size: 22px; font-weight: 700; }
+  header p  { font-size: 13px; color: var(--text-dim); margin-top: 2px; }
+
+  /* steps */
+  .steps { display: flex; gap: 8px; margin-bottom: 24px; flex-wrap: wrap; }
+  .step {
+    display: flex; align-items: center; gap: 8px;
+    padding: 6px 14px; border-radius: 20px; font-size: 13px;
+    border: 1px solid var(--border); color: var(--text-dim);
+    background: var(--panel); transition: all 0.3s;
+  }
+  .step.active { border-color: var(--accent); color: var(--accent); background: rgba(0,212,170,0.08); }
+  .step.done   { border-color: rgba(0,212,170,0.3); color: rgba(0,212,170,0.6); }
+  .step-num {
+    width: 20px; height: 20px; border-radius: 50%;
+    background: var(--border);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 11px; font-weight: 700; font-family: 'IBM Plex Mono', monospace;
+  }
+  .step.active .step-num { background: var(--accent); color: #000; }
+  .step.done   .step-num { background: rgba(0,212,170,0.3); color: var(--accent); }
+
+  /* panel */
+  .panel {
+    background: var(--card-bg); border: 1px solid var(--border);
+    border-radius: 12px; padding: 24px; margin-bottom: 20px; display: none;
+  }
+  .panel.visible { display: block; }
+  .panel-title {
+    font-size: 15px; font-weight: 700; margin-bottom: 16px;
+    display: flex; align-items: center; gap: 8px;
+  }
+  .panel-title .icon {
+    width: 28px; height: 28px; border-radius: 7px;
+    background: rgba(0,212,170,0.12);
+    display: flex; align-items: center; justify-content: center; font-size: 14px;
+  }
+
+  /* file */
+  .drop-zone {
+    border: 2px dashed var(--border); border-radius: 10px;
+    padding: 40px; text-align: center; cursor: pointer; transition: all 0.3s;
+  }
+  .drop-zone:hover, .drop-zone.drag-over { border-color: var(--accent); background: rgba(0,212,170,0.04); }
+  .drop-icon { font-size: 36px; margin-bottom: 12px; }
+  .drop-zone p { color: var(--text-dim); font-size: 14px; }
+  .drop-zone strong { color: var(--accent); }
+  #fileInput { display: none; }
+  .error-msg {
+    background: rgba(255,68,102,0.08); border: 1px solid rgba(255,68,102,0.3);
+    border-radius: 8px; padding: 10px 14px; color: var(--red);
+    font-size: 13px; display: none; margin-top: 10px;
+  }
+  .loading {
+    display: flex; align-items: center; gap: 10px;
+    padding: 16px; color: var(--text-dim); font-size: 14px;
+  }
+  .spinner {
+    width: 18px; height: 18px; border: 2px solid var(--border);
+    border-top-color: var(--accent); border-radius: 50%;
+    animation: spin 0.7s linear infinite;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* electrode */
+  .electrode-grid { display: grid; grid-template-columns: repeat(4,1fr); gap: 12px; }
+  .electrode-btn {
+    background: var(--panel); border: 2px solid var(--border);
+    border-radius: 10px; padding: 18px 12px; text-align: center;
+    cursor: pointer; transition: all 0.25s; color: var(--text); font-family: 'Heebo', sans-serif;
+  }
+  .electrode-btn:hover { border-color: var(--accent3); background: rgba(124,109,250,0.08); }
+  .electrode-btn.selected { border-color: var(--accent); background: rgba(0,212,170,0.1); color: var(--accent); }
+  .electrode-num { font-size: 28px; font-weight: 700; font-family: 'IBM Plex Mono', monospace; display: block; margin-bottom: 4px; }
+  .electrode-label { font-size: 12px; color: var(--text-dim); }
+  .electrode-btn.selected .electrode-label { color: rgba(0,212,170,0.7); }
+
+  /* chart wrapper */
+  .chart-wrapper {
+    position: relative;
+    background: var(--panel); border-radius: 10px;
+    padding: 12px 16px 16px; border: 1px solid var(--border);
+    margin-bottom: 16px; user-select: none;
+  }
+  #chartCanvas { width: 100% !important; display: block; }
+
+  /* marker table */
+  .marker-table { width: 100%; border-collapse: collapse; margin-bottom: 16px; font-size: 13px; }
+  .marker-table th {
+    text-align: right; color: var(--text-dim); font-weight: 600;
+    padding: 6px 10px; font-family: 'IBM Plex Mono', monospace; font-size: 11px;
+    border-bottom: 1px solid var(--border);
+  }
+  .marker-table td { padding: 8px 10px; border-bottom: 1px solid rgba(37,42,56,0.5); font-family: 'IBM Plex Mono', monospace; }
+  .marker-table td:first-child { font-weight: 600; }
+  .marker-dot { display: inline-block; width: 10px; height: 10px; border-radius: 50%; margin-left: 8px; vertical-align: middle; }
+  .mvc-color { background: var(--orange); }
+  .act-color { background: var(--accent3); }
+  .time-val { color: var(--accent); }
+
+  .instr-row {
+    background: rgba(0,212,170,0.06); border: 1px solid rgba(0,212,170,0.2);
+    border-radius: 8px; padding: 10px 16px; font-size: 13px; color: var(--accent);
+    margin-bottom: 14px; display: flex; align-items: center; gap: 8px;
+  }
+
+  /* buttons */
+  .btn-row { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 10px; }
+  .btn {
+    padding: 9px 20px; border-radius: 8px;
+    border: 1px solid var(--border); background: var(--panel);
+    color: var(--text); font-family: 'Heebo', sans-serif;
+    font-size: 13px; cursor: pointer; transition: all 0.2s;
+    display: flex; align-items: center; gap: 6px;
+  }
+  .btn:hover { border-color: var(--text-dim); }
+  .btn.primary { background: var(--accent); border-color: var(--accent); color: #000; font-weight: 600; }
+  .btn.primary:hover { background: #00bfa0; }
+
+  /* results */
+  .results-2col {
+    display: grid; grid-template-columns: 1fr 1fr; gap: 16px;
+    margin-bottom: 20px; max-width: 400px;
+  }
+  .result-card {
+    background: var(--panel); border-radius: 12px;
+    padding: 26px 20px; border: 1px solid var(--border);
+    position: relative; overflow: hidden; text-align: center;
+  }
+  .result-card::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 3px; }
+  .result-card.mean-card::before { background: var(--accent3); }
+  .result-card.max-card::before  { background: var(--accent); }
+  .result-label { font-size: 11px; color: var(--text-dim); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 10px; font-family: 'IBM Plex Mono', monospace; }
+  .result-value { font-size: 42px; font-weight: 700; font-family: 'IBM Plex Mono', monospace; color: var(--text); line-height: 1; }
+  .result-unit  { font-size: 14px; color: var(--text-dim); margin-top: 6px; }
+
+  @media (max-width: 600px) {
+    .electrode-grid { grid-template-columns: repeat(2,1fr); }
+    body { padding: 14px; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo">⚡</div>
+  <div>
+    <h1>ניתוח EMG — חישוב MVC</h1>
+    <p>כלי לניתוח פעילות שרירית מנורמלת</p>
+  </div>
+</header>
+
+<div class="steps">
+  <div class="step active" id="step1"><span class="step-num">1</span> טעינת קובץ</div>
+  <div class="step" id="step2"><span class="step-num">2</span> בחירת אלקטרודה</div>
+  <div class="step" id="step3"><span class="step-num">3</span> סימון אזורים</div>
+  <div class="step" id="step4"><span class="step-num">4</span> תוצאות</div>
+</div>
+
+<!-- PANEL 1: File -->
+<div class="panel visible" id="panel-file">
+  <div class="panel-title"><span class="icon">📂</span> העלאת קובץ נתונים</div>
+  <div class="drop-zone" id="dropZone" onclick="document.getElementById('fileInput').click()">
+    <div class="drop-icon">📁</div>
+    <p>לחץ לבחירת קובץ, או גרור לכאן</p>
+    <p style="margin-top:6px"><strong>קבצי .txt מ-Delsys Trigno</strong></p>
+  </div>
+  <input type="file" id="fileInput" accept=".txt,.csv">
+  <div id="fileError" class="error-msg"></div>
+  <div id="fileLoading" style="display:none" class="loading"><div class="spinner"></div>מעבד נתונים...</div>
+</div>
+
+<!-- PANEL 2: Electrode -->
+<div class="panel" id="panel-electrode">
+  <div class="panel-title"><span class="icon">🎯</span> בחירת אלקטרודה</div>
+  <p style="color:var(--text-dim); font-size:13px; margin-bottom:16px;">איזו אלקטרודה הייתה שלך בניסוי?</p>
+  <div class="electrode-grid" id="electrodeGrid"></div>
+  <div class="btn-row" style="margin-top:18px">
+    <button class="btn primary" onclick="confirmElectrode()">המשך →</button>
+  </div>
+</div>
+
+<!-- PANEL 3: Chart -->
+<div class="panel" id="panel-chart">
+  <div class="panel-title"><span class="icon">📈</span> סימון אזורים בגרף</div>
+
+  <div class="instr-row">
+    <span>🖱️</span>
+    <span>גרור את הקווים האנכיים כדי לסמן את האזורים. <strong style="color:var(--orange)">קווים כתומים = MVC</strong> &nbsp;|&nbsp; <strong style="color:var(--accent3)">קווים סגולים = פעילות</strong></span>
+  </div>
+
+  <table class="marker-table">
+    <thead>
+      <tr><th>סמן</th><th>תיאור</th><th>זמן</th></tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><span class="marker-dot mvc-color"></span>MVC — התחלה</td>
+        <td style="color:var(--text-dim)">תחילת הכיווץ המקסימלי</td>
+        <td><span class="time-val" id="tv-mvc-start">—</span> s</td>
+      </tr>
+      <tr>
+        <td><span class="marker-dot mvc-color"></span>MVC — סוף</td>
+        <td style="color:var(--text-dim)">סוף הכיווץ המקסימלי</td>
+        <td><span class="time-val" id="tv-mvc-end">—</span> s</td>
+      </tr>
+      <tr>
+        <td><span class="marker-dot act-color"></span>פעילות — התחלה</td>
+        <td style="color:var(--text-dim)">תחילת אזור הפעילות</td>
+        <td><span class="time-val" id="tv-act-start">—</span> s</td>
+      </tr>
+      <tr>
+        <td><span class="marker-dot act-color"></span>פעילות — סוף</td>
+        <td style="color:var(--text-dim)">סוף אזור הפעילות</td>
+        <td><span class="time-val" id="tv-act-end">—</span> s</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <div class="chart-wrapper" id="chartWrapper">
+    <canvas id="chartCanvas" height="300"></canvas>
+    <svg id="lineSvg" style="position:absolute;top:0;left:0;width:100%;height:100%;pointer-events:none;overflow:visible;">
+      <!-- shaded regions (behind lines) -->
+      <rect id="shade-mvc" fill="rgba(255,107,53,0.12)" pointer-events="none"/>
+      <rect id="shade-act" fill="rgba(124,109,250,0.12)" pointer-events="none"/>
+
+      <!-- MVC start -->
+      <line  id="line-mvc-start"   stroke="#ff6b35" stroke-width="2.5" stroke-dasharray="7,4"/>
+      <rect  id="handle-mvc-start" rx="4" fill="#ff6b35" opacity="0.9" style="cursor:ew-resize;pointer-events:all;"/>
+      <text  id="label-mvc-start"  fill="#ff6b35" font-size="10" font-family="IBM Plex Mono,monospace" text-anchor="middle">MVC▶</text>
+
+      <!-- MVC end -->
+      <line  id="line-mvc-end"   stroke="#ff6b35" stroke-width="2.5" stroke-dasharray="7,4"/>
+      <rect  id="handle-mvc-end" rx="4" fill="#ff6b35" opacity="0.9" style="cursor:ew-resize;pointer-events:all;"/>
+      <text  id="label-mvc-end"  fill="#ff6b35" font-size="10" font-family="IBM Plex Mono,monospace" text-anchor="middle">◀MVC</text>
+
+      <!-- Activity start -->
+      <line  id="line-act-start"   stroke="#7c6dfa" stroke-width="2.5" stroke-dasharray="7,4"/>
+      <rect  id="handle-act-start" rx="4" fill="#7c6dfa" opacity="0.9" style="cursor:ew-resize;pointer-events:all;"/>
+      <text  id="label-act-start"  fill="#7c6dfa" font-size="10" font-family="IBM Plex Mono,monospace" text-anchor="middle">פע▶</text>
+
+      <!-- Activity end -->
+      <line  id="line-act-end"   stroke="#7c6dfa" stroke-width="2.5" stroke-dasharray="7,4"/>
+      <rect  id="handle-act-end" rx="4" fill="#7c6dfa" opacity="0.9" style="cursor:ew-resize;pointer-events:all;"/>
+      <text  id="label-act-end"  fill="#7c6dfa" font-size="10" font-family="IBM Plex Mono,monospace" text-anchor="middle">◀פע</text>
+    </svg>
+  </div>
+
+  <div class="btn-row">
+    <button class="btn primary" onclick="calculate()">חשב תוצאות ✓</button>
+    <button class="btn" onclick="resetAll()">↩ התחל מחדש</button>
+  </div>
+</div>
+
+<!-- PANEL 4: Results -->
+<div class="panel" id="panel-results">
+  <div class="panel-title"><span class="icon">📊</span> תוצאות</div>
+  <div class="results-2col" id="resultsGrid"></div>
+  <div class="btn-row">
+    <button class="btn" onclick="goBackToChart()">← חזור לגרף</button>
+    <button class="btn" onclick="resetAll()">↩ ניתוח חדש</button>
+    <button class="btn primary" onclick="copyResults()">📋 העתק תוצאות</button>
+  </div>
+</div>
+
+<script>
+// =====================================================
+//  STATE
+// =====================================================
+let rawTime = [], filteredSignal = [];
+let selectedElectrode = null;
+let chart = null;
+let dragging = null;
+
+// Marker times in seconds — positioned at 15/30/55/75% of timeline by default
+const markers = { 'mvc-start': 0, 'mvc-end': 0, 'act-start': 0, 'act-end': 0 };
+
+// =====================================================
+//  FILE
+// =====================================================
+document.getElementById('fileInput').addEventListener('change', e => {
+  if (e.target.files[0]) loadFile(e.target.files[0]);
+});
+const dz = document.getElementById('dropZone');
+dz.addEventListener('dragover',  e => { e.preventDefault(); dz.classList.add('drag-over'); });
+dz.addEventListener('dragleave', () => dz.classList.remove('drag-over'));
+dz.addEventListener('drop', e => { e.preventDefault(); dz.classList.remove('drag-over'); if (e.dataTransfer.files[0]) loadFile(e.dataTransfer.files[0]); });
+
+function loadFile(file) {
+  const err = document.getElementById('fileError');
+  const lod = document.getElementById('fileLoading');
+  err.style.display = 'none'; lod.style.display = 'flex';
+  const r = new FileReader();
+  r.onload = e => { try { parseFile(e.target.result); lod.style.display = 'none'; } catch(ex) { lod.style.display = 'none'; err.textContent = 'שגיאה: ' + ex.message; err.style.display = 'block'; } };
+  r.readAsText(file);
+}
+
+function parseFile(text) {
+  const lines = text.split('\n').map(l => l.trim()).filter(Boolean);
+  let hi = -1;
+  for (let i = 0; i < lines.length; i++) { if (lines[i].startsWith('X [s]') || lines[i].startsWith('X[s]')) { hi = i; break; } }
+  if (hi < 0) throw new Error('לא נמצאה שורת כותרת עם "X [s]"');
+
+  const cols = lines[hi].split(',').map(c => c.trim());
+  let fc = [];
+  for (let ci = 1; ci < cols.length; ci++) { if (cols[ci].toLowerCase().includes('filter') || cols[ci].toLowerCase().includes('rms')) fc.push(ci); }
+  if (!fc.length) for (let ci = 1; ci < cols.length; ci += 2) fc.push(ci);
+
+  window._electrodeCount  = fc.length;
+  window._electrodeLabels = fc.map((ci, i) => { const m = cols[ci].match(/EMG\s*(\d+)/i); return m ? `אלקטרודה ${m[1]}` : `ערוץ ${i+1}`; });
+
+  const allTime = [], allData = fc.map(() => []);
+  const dl = lines.slice(hi + 1);
+  const step = dl.length > 10000 ? Math.ceil(dl.length / 10000) : 1;
+  for (let i = 0; i < dl.length; i += step) {
+    const p = dl[i].split(','); if (p.length < 2) continue;
+    const t = parseFloat(p[0]); if (isNaN(t)) continue;
+    allTime.push(t);
+    for (let j = 0; j < fc.length; j++) allData[j].push(Math.abs(parseFloat(p[fc[j]]) || 0));
+  }
+  rawTime = allTime;
+  window._allChannels = allData;
+  buildElectrodePanel();
+  setStep(2);
+  document.getElementById('panel-file').classList.remove('visible');
+  document.getElementById('panel-electrode').classList.add('visible');
+}
+
+// =====================================================
+//  ELECTRODE
+// =====================================================
+function buildElectrodePanel() {
+  const g = document.getElementById('electrodeGrid'); g.innerHTML = '';
+  for (let i = 0; i < window._electrodeCount; i++) {
+    const b = document.createElement('button'); b.className = 'electrode-btn';
+    b.innerHTML = `<span class="electrode-num">${i+1}</span><span class="electrode-label">${window._electrodeLabels[i]}</span>`;
+    b.onclick = () => { document.querySelectorAll('.electrode-btn').forEach(x => x.classList.remove('selected')); b.classList.add('selected'); selectedElectrode = i; };
+    g.appendChild(b);
+  }
+}
+function confirmElectrode() {
+  if (selectedElectrode === null) { alert('אנא בחר אלקטרודה'); return; }
+  filteredSignal = window._allChannels[selectedElectrode];
+  document.getElementById('panel-electrode').classList.remove('visible');
+  document.getElementById('panel-chart').classList.add('visible');
+  setStep(3);
+  buildChart();
+}
+
+// =====================================================
+//  CHART
+// =====================================================
+function buildChart() {
+  if (chart) chart.destroy();
+  const ctx = document.getElementById('chartCanvas').getContext('2d');
+  chart = new Chart(ctx, {
+    type: 'line',
+    data: { labels: rawTime, datasets: [{ label: 'EMG RMS', data: filteredSignal, borderColor: '#00d4aa', borderWidth: 1.5, pointRadius: 0, fill: false, tension: 0 }] },
+    options: {
+      responsive: true, animation: false,
+      plugins: {
+        legend: { display: false },
+        tooltip: { callbacks: { label: c => `${(c.parsed.y*1000).toFixed(3)} mV`, title: c => `t = ${parseFloat(c[0].label).toFixed(3)} s` }, backgroundColor: '#1a1f2e', titleColor: '#e8ecf4', bodyColor: '#00d4aa', borderColor: '#252a38', borderWidth: 1 }
+      },
+      scales: {
+        x: { type: 'linear', title: { display: true, text: 'זמן (שניות)', color: '#6b7494' }, ticks: { color: '#6b7494', maxTicksLimit: 12, callback: v => v.toFixed(1)+'s' }, grid: { color: '#252a38' } },
+        y: { title: { display: true, text: 'אות (V)', color: '#6b7494' }, ticks: { color: '#6b7494', callback: v => (v*1000).toFixed(2)+' mV' }, grid: { color: '#252a38' } }
+      }
+    }
+  });
+
+  // Default marker positions
+  const tMin = rawTime[0], span = rawTime[rawTime.length-1] - tMin;
+  markers['mvc-start'] = tMin + span*0.15;
+  markers['mvc-end']   = tMin + span*0.30;
+  markers['act-start'] = tMin + span*0.55;
+  markers['act-end']   = tMin + span*0.75;
+
+  requestAnimationFrame(() => requestAnimationFrame(() => { positionAllLines(); syncTable(); }));
+  setupDrag();
+  window.addEventListener('resize', () => { positionAllLines(); });
+}
+
+// =====================================================
+//  SVG LINE RENDERING
+// =====================================================
+function canvasOffset() {
+  const w = document.getElementById('chartWrapper').getBoundingClientRect();
+  const c = document.getElementById('chartCanvas').getBoundingClientRect();
+  return { dx: c.left - w.left, dy: c.top - w.top };
+}
+
+function timeToX(t) { return chart.scales.x.getPixelForValue(t); }
+function xToTime(px) { return chart.scales.x.getValueForPixel(px); }
+
+function positionLine(key) {
+  if (!chart || !chart.chartArea) return;
+  const t   = markers[key];
+  const off = canvasOffset();
+  const cx  = timeToX(t) + off.dx;
+  const top = chart.chartArea.top  + off.dy;
+  const bot = chart.chartArea.bottom + off.dy;
+  const mid = (top + bot) / 2;
+
+  const line = document.getElementById('line-' + key);
+  line.setAttribute('x1', cx); line.setAttribute('y1', top);
+  line.setAttribute('x2', cx); line.setAttribute('y2', bot);
+
+  const hw = 14, hh = 28;
+  const handle = document.getElementById('handle-' + key);
+  handle.setAttribute('x', cx - hw/2); handle.setAttribute('y', mid - hh/2);
+  handle.setAttribute('width', hw);    handle.setAttribute('height', hh);
+
+  const lbl = document.getElementById('label-' + key);
+  lbl.setAttribute('x', cx); lbl.setAttribute('y', top - 6);
+}
+
+function positionShades() {
+  if (!chart || !chart.chartArea) return;
+  const off = canvasOffset();
+  const top = chart.chartArea.top    + off.dy;
+  const h   = chart.chartArea.bottom - chart.chartArea.top;
+
+  function shade(id, k1, k2) {
+    const x1 = timeToX(markers[k1]) + off.dx;
+    const x2 = timeToX(markers[k2]) + off.dx;
+    const el  = document.getElementById(id);
+    el.setAttribute('x',      Math.min(x1,x2));
+    el.setAttribute('y',      top);
+    el.setAttribute('width',  Math.abs(x2-x1));
+    el.setAttribute('height', h);
+  }
+  shade('shade-mvc', 'mvc-start', 'mvc-end');
+  shade('shade-act', 'act-start', 'act-end');
+}
+
+function positionAllLines() {
+  ['mvc-start','mvc-end','act-start','act-end'].forEach(positionLine);
+  positionShades();
+}
+
+// =====================================================
+//  DRAG
+// =====================================================
+function setupDrag() {
+  ['mvc-start','mvc-end','act-start','act-end'].forEach(key => {
+    const h = document.getElementById('handle-' + key);
+    h.addEventListener('mousedown',  e => { dragging = key; e.stopPropagation(); e.preventDefault(); });
+    h.addEventListener('touchstart', e => { dragging = key; e.stopPropagation(); }, { passive: true });
+  });
+  document.addEventListener('mousemove', e => { if (dragging) moveTo(e.clientX); });
+  document.addEventListener('touchmove', e => { if (dragging) moveTo(e.touches[0].clientX); }, { passive: true });
+  document.addEventListener('mouseup',  () => { dragging = null; });
+  document.addEventListener('touchend', () => { dragging = null; });
+}
+
+function moveTo(clientX) {
+  const rect = document.getElementById('chartCanvas').getBoundingClientRect();
+  let t = xToTime(clientX - rect.left);
+  const tMin = rawTime[0], tMax = rawTime[rawTime.length-1];
+  t = Math.max(tMin, Math.min(tMax, t));
+
+  // Enforce ordering with 50ms minimum gap
+  const GAP = 0.05;
+  if (dragging === 'mvc-start') t = Math.min(t, markers['mvc-end']   - GAP);
+  if (dragging === 'mvc-end')   t = Math.max(t, markers['mvc-start'] + GAP);
+  if (dragging === 'act-start') t = Math.min(t, markers['act-end']   - GAP);
+  if (dragging === 'act-end')   t = Math.max(t, markers['act-start'] + GAP);
+
+  markers[dragging] = t;
+  positionLine(dragging);
+  positionShades();
+  syncTable();
+}
+
+function syncTable() {
+  document.getElementById('tv-mvc-start').textContent = markers['mvc-start'].toFixed(3);
+  document.getElementById('tv-mvc-end').textContent   = markers['mvc-end'].toFixed(3);
+  document.getElementById('tv-act-start').textContent = markers['act-start'].toFixed(3);
+  document.getElementById('tv-act-end').textContent   = markers['act-end'].toFixed(3);
+}
+
+// =====================================================
+//  CALCULATE
+// =====================================================
+function closestIdx(t) {
+  let lo = 0, hi = rawTime.length - 1;
+  while (lo < hi) { const m = (lo+hi)>>1; if (rawTime[m] < t) lo=m+1; else hi=m; }
+  return lo;
+}
+function mean(arr) { return arr.reduce((s,v)=>s+v,0)/arr.length; }
+
+function calculate() {
+  const i0m = closestIdx(markers['mvc-start']), i1m = closestIdx(markers['mvc-end']);
+  const i0a = closestIdx(markers['act-start']), i1a = closestIdx(markers['act-end']);
+  if (i1m <= i0m || i1a <= i0a) { alert('ודא שסוף כל אזור גדול מהתחלתו'); return; }
+
+  const mvcSlice = filteredSignal.slice(i0m, i1m+1);
+  const actSlice = filteredSignal.slice(i0a, i1a+1);
+  const mvcMean  = mean(mvcSlice);
+  const normMean = mean(actSlice) / mvcMean * 100;
+  const normMax  = Math.max(...actSlice) / mvcMean * 100;
+
+  showResults(normMean, normMax);
+}
+
+// =====================================================
+//  RESULTS
+// =====================================================
+function showResults(normMean, normMax) {
+  setStep(4);
+  document.getElementById('panel-chart').classList.remove('visible');
+  document.getElementById('panel-results').classList.add('visible');
+
+  document.getElementById('resultsGrid').innerHTML = `
+    <div class="result-card mean-card">
+      <div class="result-label">ממוצע פעילות</div>
+      <div class="result-value">${normMean.toFixed(1)}</div>
+      <div class="result-unit">% MVC</div>
+    </div>
+    <div class="result-card max-card">
+      <div class="result-label">מקסימום פעילות</div>
+      <div class="result-value">${normMax.toFixed(1)}</div>
+      <div class="result-unit">% MVC</div>
+    </div>`;
+
+  window._lastResults = { normMean, normMax };
+}
+
+function goBackToChart() {
+  document.getElementById('panel-results').classList.remove('visible');
+  document.getElementById('panel-chart').classList.add('visible');
+  setStep(3);
+  requestAnimationFrame(positionAllLines);
+}
+function resetAll() { location.reload(); }
+
+function copyResults() {
+  const r = window._lastResults; if (!r) return;
+  navigator.clipboard.writeText(
+    `ניתוח EMG — אלקטרודה ${selectedElectrode+1}\n---\n% MVC ממוצע:    ${r.normMean.toFixed(1)}%\n% MVC מקסימום:  ${r.normMax.toFixed(1)}%`
+  ).then(() => alert('הועתק ✓'));
+}
+
+function setStep(n) {
+  for (let i = 1; i <= 4; i++) {
+    const el = document.getElementById(`step${i}`);
+    el.classList.remove('active','done');
+    if (i < n) el.classList.add('done');
+    else if (i === n) el.classList.add('active');
+  }
+}
+</script>
+</body>
+</html>
