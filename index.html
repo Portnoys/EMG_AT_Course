@@ -211,7 +211,7 @@
 </header>
 
 <div class="steps">
-  <div class="step active" id="step1"><span class="step-num">1</span> Load File</div>
+  <div class="step active" id="step1"><span class="step-num">1</span> Load File from David</div>
   <div class="step" id="step2"><span class="step-num">2</span> Select Electrode</div>
   <div class="step" id="step3"><span class="step-num">3</span> Mark Regions</div>
   <div class="step" id="step4"><span class="step-num">4</span> Results</div>
@@ -649,9 +649,9 @@ function calculate() {
 
   const mvcSlice = filteredSignal.slice(i0m, i1m+1);
   const actSlice = filteredSignal.slice(i0a, i1a+1);
-  const mvcMean  = mean(mvcSlice);
-  const normMean = mean(actSlice) / mvcMean * 100;
-  const normMax  = Math.max(...actSlice) / mvcMean * 100;
+  const mvcMax   = Math.max(...mvcSlice);
+  const normMean = mean(actSlice) / mvcMax * 100;
+  const normMax  = Math.max(...actSlice) / mvcMax * 100;
   showResults(normMean, normMax);
 }
 
