@@ -33,7 +33,6 @@
     padding: 28px;
   }
 
-  /* ── HEADER ── */
   header {
     display: flex; align-items: center; gap: 18px;
     margin-bottom: 28px; padding-bottom: 22px;
@@ -57,7 +56,6 @@
     font-size: 13px; color: var(--accent); font-weight: 600;
   }
 
-  /* ── STEPS ── */
   .steps { display: flex; gap: 8px; margin-bottom: 26px; flex-wrap: wrap; }
   .step {
     display: flex; align-items: center; gap: 8px;
@@ -76,7 +74,6 @@
   .step.active .step-num { background: var(--accent); color: #000; }
   .step.done   .step-num { background: rgba(0,212,170,0.3); color: var(--accent); }
 
-  /* ── PANEL ── */
   .panel {
     background: var(--card-bg); border: 1px solid var(--border);
     border-radius: 14px; padding: 28px; margin-bottom: 20px; display: none;
@@ -92,7 +89,6 @@
     display: flex; align-items: center; justify-content: center; font-size: 16px;
   }
 
-  /* ── FILE ── */
   .drop-zone {
     border: 2px dashed var(--border); border-radius: 12px;
     padding: 48px 40px; text-align: center; cursor: pointer; transition: all 0.3s;
@@ -118,20 +114,21 @@
   }
   @keyframes spin { to { transform: rotate(360deg); } }
 
-  /* ── ELECTRODE ── */
-  .electrode-grid { display: grid; grid-template-columns: repeat(4,1fr); gap: 14px; }
+  /* 2-electrode grid */
+  .electrode-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; max-width: 440px; }
   .electrode-btn {
     background: var(--panel); border: 2px solid var(--border);
-    border-radius: 12px; padding: 22px 14px; text-align: center;
+    border-radius: 14px; padding: 30px 20px; text-align: center;
     cursor: pointer; transition: all 0.25s; color: var(--text); font-family: 'Inter', sans-serif;
   }
   .electrode-btn:hover { border-color: var(--accent3); background: rgba(124,109,250,0.08); }
   .electrode-btn.selected { border-color: var(--accent); background: rgba(0,212,170,0.1); color: var(--accent); }
-  .electrode-num { font-size: 32px; font-weight: 700; font-family: 'IBM Plex Mono', monospace; display: block; margin-bottom: 6px; }
+  .electrode-num { font-size: 42px; font-weight: 700; font-family: 'IBM Plex Mono', monospace; display: block; margin-bottom: 8px; }
   .electrode-label { font-size: 13px; color: var(--text-dim); }
-  .electrode-btn.selected .electrode-label { color: rgba(0,212,170,0.7); }
+  .electrode-sublabel { font-size: 11px; color: var(--text-dim); margin-top: 4px; font-family: 'IBM Plex Mono', monospace; opacity: 0.7; }
+  .electrode-btn.selected .electrode-label,
+  .electrode-btn.selected .electrode-sublabel { color: rgba(0,212,170,0.7); }
 
-  /* ── CHART ── */
   .chart-wrapper {
     position: relative;
     background: var(--panel); border-radius: 10px;
@@ -140,7 +137,6 @@
   }
   #chartCanvas { width: 100% !important; display: block; }
 
-  /* ── MARKER TABLE ── */
   .marker-table { width: 100%; border-collapse: collapse; margin-bottom: 18px; font-size: 15px; }
   .marker-table th {
     text-align: left; color: var(--text-dim); font-weight: 600;
@@ -163,7 +159,6 @@
     margin-bottom: 16px; display: flex; align-items: center; gap: 10px; line-height: 1.5;
   }
 
-  /* ── BUTTONS ── */
   .btn-row { display: flex; gap: 12px; flex-wrap: wrap; margin-top: 12px; }
   .btn {
     padding: 11px 24px; border-radius: 9px;
@@ -176,7 +171,6 @@
   .btn.primary { background: var(--accent); border-color: var(--accent); color: #000; font-weight: 600; }
   .btn.primary:hover { background: #00bfa0; }
 
-  /* ── RESULTS ── */
   .results-2col {
     display: grid; grid-template-columns: 1fr 1fr; gap: 18px;
     margin-bottom: 24px; max-width: 440px;
@@ -200,7 +194,6 @@
   .result-unit { font-size: 15px; color: var(--text-dim); margin-top: 8px; }
 
   @media (max-width: 600px) {
-    .electrode-grid { grid-template-columns: repeat(2,1fr); }
     body { padding: 16px; }
   }
 </style>
@@ -230,7 +223,7 @@
   <div class="drop-zone" id="dropZone" onclick="document.getElementById('fileInput').click()">
     <div class="drop-icon">📁</div>
     <p>Click to select a file, or drag and drop here</p>
-    <p style="margin-top:8px"><strong>Upload .txt file from David</strong></p>
+    <p style="margin-top:8px"><strong>Upload .csv file from Trigno Discover</strong></p>
   </div>
   <input type="file" id="fileInput" accept=".txt,.csv">
   <div id="fileError" class="error-msg"></div>
@@ -240,7 +233,7 @@
 <!-- PANEL 2: Electrode -->
 <div class="panel" id="panel-electrode">
   <div class="panel-title"><span class="icon">🎯</span> Select Your Electrode</div>
-  <p style="color:var(--text-dim); font-size:15px; margin-bottom:18px;">Which electrode was yours in the experiment?</p>
+  <p style="color:var(--text-dim); font-size:15px; margin-bottom:20px;">Which electrode was yours in the experiment?</p>
   <div class="electrode-grid" id="electrodeGrid"></div>
   <div class="btn-row" style="margin-top:20px">
     <button class="btn primary" onclick="confirmElectrode()">Continue →</button>
@@ -290,7 +283,6 @@
   <div class="chart-wrapper" id="chartWrapper">
     <canvas id="chartCanvas" height="300"></canvas>
     <svg id="lineSvg" style="position:absolute;top:0;left:0;width:100%;height:100%;pointer-events:none;overflow:visible;">
-      <!-- shaded regions -->
       <rect id="shade-mvc" fill="rgba(255,107,53,0.12)" pointer-events="none"/>
       <rect id="shade-act" fill="rgba(124,109,250,0.12)" pointer-events="none"/>
       <!-- MVC start -->
@@ -348,63 +340,139 @@ document.getElementById('fileInput').addEventListener('change', e => {
 const dz = document.getElementById('dropZone');
 dz.addEventListener('dragover',  e => { e.preventDefault(); dz.classList.add('drag-over'); });
 dz.addEventListener('dragleave', () => dz.classList.remove('drag-over'));
-dz.addEventListener('drop', e => { e.preventDefault(); dz.classList.remove('drag-over'); if (e.dataTransfer.files[0]) loadFile(e.dataTransfer.files[0]); });
+dz.addEventListener('drop', e => {
+  e.preventDefault(); dz.classList.remove('drag-over');
+  if (e.dataTransfer.files[0]) loadFile(e.dataTransfer.files[0]);
+});
 
 function loadFile(file) {
   const err = document.getElementById('fileError');
   const lod = document.getElementById('fileLoading');
   err.style.display = 'none'; lod.style.display = 'flex';
   const r = new FileReader();
-  r.onload = e => { try { parseFile(e.target.result); lod.style.display = 'none'; } catch(ex) { lod.style.display = 'none'; err.textContent = 'Error: ' + ex.message; err.style.display = 'block'; } };
+  r.onload = e => {
+    try { parseFile(e.target.result); lod.style.display = 'none'; }
+    catch(ex) { lod.style.display = 'none'; err.textContent = 'Error: ' + ex.message; err.style.display = 'block'; }
+  };
   r.readAsText(file);
 }
 
+/*
+  Trigno Discover CSV structure:
+  Row 0: Application header
+  Row 1: Date/Time
+  Row 2: Collection Length
+  Row 3: Sensor names
+  Row 4: sensor mode
+  Row 5: Column headers  → "EMG 1 Time Series (s)", "EMG 1 (mV)", "EMG 1_Offset_Windowed_RMS Time Series (s)", "EMG 1_Offset_Windowed_RMS (mV)", [same x4 for sensor 1]
+  Row 6: Sample rate info
+  Row 7: sample interval info (mixed with event metadata, skip)
+  Row 8+: Data rows
+
+  Electrode 1 RMS: col index 2 = time, col index 3 = value  (columns C & D, 0-based)
+  Electrode 2 RMS: col index 6 = time, col index 7 = value  (columns G & H, 0-based)
+*/
 function parseFile(text) {
-  const lines = text.split('\n').map(l => l.trim()).filter(Boolean);
-  let hi = -1;
-  for (let i = 0; i < lines.length; i++) { if (lines[i].startsWith('X [s]') || lines[i].startsWith('X[s]')) { hi = i; break; } }
-  if (hi < 0) throw new Error('Could not find header row with "X [s]"');
+  const lines = text.split('\n').map(l => l.trimEnd());
 
-  const cols = lines[hi].split(',').map(c => c.trim());
-  let fc = [];
-  for (let ci = 1; ci < cols.length; ci++) { if (cols[ci].toLowerCase().includes('filter') || cols[ci].toLowerCase().includes('rms')) fc.push(ci); }
-  if (!fc.length) for (let ci = 1; ci < cols.length; ci += 2) fc.push(ci);
-
-  window._electrodeCount  = fc.length;
-  window._electrodeLabels = fc.map((ci, i) => { const m = cols[ci].match(/EMG\s*(\d+)/i); return m ? `Electrode ${m[1]}` : `Channel ${i+1}`; });
-
-  const allTime = [], allData = fc.map(() => []);
-  const dl = lines.slice(hi + 1);
-  const step = dl.length > 10000 ? Math.ceil(dl.length / 10000) : 1;
-  for (let i = 0; i < dl.length; i += step) {
-    const p = dl[i].split(','); if (p.length < 2) continue;
-    const t = parseFloat(p[0]); if (isNaN(t)) continue;
-    allTime.push(t);
-    for (let j = 0; j < fc.length; j++) allData[j].push(Math.abs(parseFloat(p[fc[j]]) || 0));
+  // Find the column header row (contains "EMG 1 Time Series")
+  let headerRow = -1;
+  for (let i = 0; i < Math.min(lines.length, 20); i++) {
+    if (lines[i].includes('EMG 1 Time Series') || lines[i].includes('EMG 1 (mV)')) {
+      headerRow = i;
+      break;
+    }
   }
-  rawTime = allTime;
-  window._allChannels = allData;
+  if (headerRow < 0) throw new Error('Could not find EMG column headers. Is this a Trigno Discover CSV?');
+
+  // Data starts 3 rows after header (skip sample-rate row, sample-interval row, then data)
+  // but we need to find the first row where col 0 parses as a number
+  let dataStart = headerRow + 1;
+  while (dataStart < lines.length) {
+    const first = lines[dataStart].split(',')[0].trim();
+    if (!isNaN(parseFloat(first)) && first !== '') break;
+    dataStart++;
+  }
+  if (dataStart >= lines.length) throw new Error('No numeric data rows found.');
+
+  // Read sensor name from row 3 (0-indexed)
+  const sensorLine = lines[3] || '';
+  const sensorParts = sensorLine.split(',');
+  // Extract sensor IDs if present, else generic names
+  const sensorNames = [
+    extractSensorName(sensorParts, 0) || 'Sensor 0',
+    extractSensorName(sensorParts, 4) || 'Sensor 1'
+  ];
+
+  // Parse data — col2/col3 = electrode 1, col6/col7 = electrode 2
+  const time1 = [], rms1 = [];
+  const time2 = [], rms2 = [];
+
+  const total = lines.length;
+  const step  = (total - dataStart) > 15000 ? Math.ceil((total - dataStart) / 12000) : 1;
+
+  for (let i = dataStart; i < total; i += step) {
+    const p = lines[i].split(',');
+    if (p.length < 8) continue;
+
+    const t1 = parseFloat(p[2]);
+    const v1 = parseFloat(p[3]);
+    if (!isNaN(t1) && !isNaN(v1)) { time1.push(t1); rms1.push(Math.abs(v1)); }
+
+    const t2 = parseFloat(p[6]);
+    const v2 = parseFloat(p[7]);
+    if (!isNaN(t2) && !isNaN(v2)) { time2.push(t2); rms2.push(Math.abs(v2)); }
+  }
+
+  if (time1.length === 0) throw new Error('No valid data parsed. Please check the file format.');
+
+  window._channels = [
+    { time: time1, rms: rms1, label: sensorNames[0], colHint: 'Column D' },
+    { time: time2, rms: rms2, label: sensorNames[1], colHint: 'Column H' }
+  ];
+
   buildElectrodePanel();
   setStep(2);
   document.getElementById('panel-file').classList.remove('visible');
   document.getElementById('panel-electrode').classList.add('visible');
 }
 
+function extractSensorName(parts, startIdx) {
+  // Try to get a clean sensor name from the header line
+  for (let i = startIdx; i < Math.min(startIdx + 4, parts.length); i++) {
+    const v = parts[i].trim();
+    if (v && v !== '') return v.replace(/\s+/g, ' ').substring(0, 30);
+  }
+  return null;
+}
+
 // =====================================================
 //  ELECTRODE
 // =====================================================
 function buildElectrodePanel() {
-  const g = document.getElementById('electrodeGrid'); g.innerHTML = '';
-  for (let i = 0; i < window._electrodeCount; i++) {
-    const b = document.createElement('button'); b.className = 'electrode-btn';
-    b.innerHTML = `<span class="electrode-num">${i+1}</span><span class="electrode-label">${window._electrodeLabels[i]}</span>`;
-    b.onclick = () => { document.querySelectorAll('.electrode-btn').forEach(x => x.classList.remove('selected')); b.classList.add('selected'); selectedElectrode = i; };
+  const g = document.getElementById('electrodeGrid');
+  g.innerHTML = '';
+  window._channels.forEach((ch, i) => {
+    const b = document.createElement('button');
+    b.className = 'electrode-btn';
+    b.innerHTML = `
+      <span class="electrode-num">${i + 1}</span>
+      <span class="electrode-label">${ch.label}</span>
+      <span class="electrode-sublabel">${ch.colHint}</span>`;
+    b.onclick = () => {
+      document.querySelectorAll('.electrode-btn').forEach(x => x.classList.remove('selected'));
+      b.classList.add('selected');
+      selectedElectrode = i;
+    };
     g.appendChild(b);
-  }
+  });
 }
+
 function confirmElectrode() {
   if (selectedElectrode === null) { alert('Please select an electrode'); return; }
-  filteredSignal = window._allChannels[selectedElectrode];
+  const ch = window._channels[selectedElectrode];
+  rawTime = ch.time;
+  filteredSignal = ch.rms;
   document.getElementById('panel-electrode').classList.remove('visible');
   document.getElementById('panel-chart').classList.add('visible');
   setStep(3);
@@ -419,25 +487,52 @@ function buildChart() {
   const ctx = document.getElementById('chartCanvas').getContext('2d');
   chart = new Chart(ctx, {
     type: 'line',
-    data: { labels: rawTime, datasets: [{ label: 'EMG RMS', data: filteredSignal, borderColor: '#00d4aa', borderWidth: 1.5, pointRadius: 0, fill: false, tension: 0 }] },
+    data: {
+      labels: rawTime,
+      datasets: [{
+        label: 'EMG RMS',
+        data: filteredSignal,
+        borderColor: '#00d4aa',
+        borderWidth: 1.5,
+        pointRadius: 0,
+        fill: false,
+        tension: 0
+      }]
+    },
     options: {
       responsive: true, animation: false,
       plugins: {
         legend: { display: false },
-        tooltip: { callbacks: { label: c => `${(c.parsed.y*1000).toFixed(3)} mV`, title: c => `t = ${parseFloat(c[0].label).toFixed(3)} s` }, backgroundColor: '#1a1f2e', titleColor: '#e8ecf4', bodyColor: '#00d4aa', borderColor: '#252a38', borderWidth: 1 }
+        tooltip: {
+          callbacks: {
+            label: c => `${c.parsed.y.toFixed(4)} mV`,
+            title: c => `t = ${parseFloat(c[0].label).toFixed(3)} s`
+          },
+          backgroundColor: '#1a1f2e', titleColor: '#e8ecf4',
+          bodyColor: '#00d4aa', borderColor: '#252a38', borderWidth: 1
+        }
       },
       scales: {
-        x: { type: 'linear', title: { display: true, text: 'Time (s)', color: '#6b7494', font: { size: 13 } }, ticks: { color: '#6b7494', maxTicksLimit: 12, callback: v => v.toFixed(1)+'s', font: { size: 12 } }, grid: { color: '#252a38' } },
-        y: { title: { display: true, text: 'Signal (V)', color: '#6b7494', font: { size: 13 } }, ticks: { color: '#6b7494', callback: v => (v*1000).toFixed(2)+' mV', font: { size: 12 } }, grid: { color: '#252a38' } }
+        x: {
+          type: 'linear',
+          title: { display: true, text: 'Time (s)', color: '#6b7494', font: { size: 13 } },
+          ticks: { color: '#6b7494', maxTicksLimit: 12, callback: v => v.toFixed(1)+'s', font: { size: 12 } },
+          grid: { color: '#252a38' }
+        },
+        y: {
+          title: { display: true, text: 'RMS Signal (mV)', color: '#6b7494', font: { size: 13 } },
+          ticks: { color: '#6b7494', callback: v => v.toFixed(3)+' mV', font: { size: 12 } },
+          grid: { color: '#252a38' }
+        }
       }
     }
   });
 
   const tMin = rawTime[0], span = rawTime[rawTime.length-1] - tMin;
-  markers['mvc-start'] = tMin + span*0.15;
-  markers['mvc-end']   = tMin + span*0.30;
-  markers['act-start'] = tMin + span*0.55;
-  markers['act-end']   = tMin + span*0.75;
+  markers['mvc-start'] = tMin + span * 0.15;
+  markers['mvc-end']   = tMin + span * 0.30;
+  markers['act-start'] = tMin + span * 0.55;
+  markers['act-end']   = tMin + span * 0.75;
 
   requestAnimationFrame(() => requestAnimationFrame(() => { positionAllLines(); syncTable(); }));
   setupDrag();
@@ -538,17 +633,20 @@ function syncTable() {
 // =====================================================
 //  CALCULATE
 // =====================================================
-function closestIdx(t) {
-  let lo = 0, hi = rawTime.length - 1;
-  while (lo < hi) { const m = (lo+hi)>>1; if (rawTime[m] < t) lo=m+1; else hi=m; }
+function closestIdx(arr, t) {
+  let lo = 0, hi = arr.length - 1;
+  while (lo < hi) { const m = (lo+hi)>>1; if (arr[m] < t) lo=m+1; else hi=m; }
   return lo;
 }
 function mean(arr) { return arr.reduce((s,v)=>s+v,0)/arr.length; }
 
 function calculate() {
-  const i0m = closestIdx(markers['mvc-start']), i1m = closestIdx(markers['mvc-end']);
-  const i0a = closestIdx(markers['act-start']), i1a = closestIdx(markers['act-end']);
+  const i0m = closestIdx(rawTime, markers['mvc-start']);
+  const i1m = closestIdx(rawTime, markers['mvc-end']);
+  const i0a = closestIdx(rawTime, markers['act-start']);
+  const i1a = closestIdx(rawTime, markers['act-end']);
   if (i1m <= i0m || i1a <= i0a) { alert('Please ensure each region end is after its start.'); return; }
+
   const mvcSlice = filteredSignal.slice(i0m, i1m+1);
   const actSlice = filteredSignal.slice(i0a, i1a+1);
   const mvcMean  = mean(mvcSlice);
@@ -588,8 +686,9 @@ function resetAll() { location.reload(); }
 
 function copyResults() {
   const r = window._lastResults; if (!r) return;
+  const ch = window._channels[selectedElectrode];
   navigator.clipboard.writeText(
-    `EMG MVC Analysis — Electrode ${selectedElectrode+1}\nAT Course · Tel Aviv University\n---\nMean Activity:  ${r.normMean.toFixed(1)}% MVC\nPeak Activity:  ${r.normMax.toFixed(1)}% MVC`
+    `EMG MVC Analysis — ${ch.label}\nAT Course · Tel Aviv University\n---\nMean Activity:  ${r.normMean.toFixed(1)}% MVC\nPeak Activity:  ${r.normMax.toFixed(1)}% MVC`
   ).then(() => alert('Copied ✓'));
 }
 
